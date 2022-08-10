@@ -46,6 +46,10 @@ def detect(t, temp, climatologyPeriod=[None,None], pctile=90, windowHalfWidth=5,
         'intensity_mean'       Mean intensity [deg. C]
         'intensity_var'        Intensity variability [deg. C]
         'intensity_cumulative' Cumulative intensity [deg. C x days]
+        'severity_max'         Maximum (peak) severity
+        'severity_mean'        Mean severity
+        'severity_var'        Severity variability [deg. C]
+        'severity_cumulative'  Cumulative severity [days]
         'rate_onset'           Onset rate of MHW [deg. C / days]
         'rate_decline'         Decline rate of MHW [deg. C / days]
 
@@ -56,6 +60,9 @@ def detect(t, temp, climatologyPeriod=[None,None], pctile=90, windowHalfWidth=5,
         'intensity_max_abs', 'intensity_mean_abs', 'intensity_var_abs', and
         'intensity_cumulative_abs' are as above except as absolute magnitudes
         rather than relative to the seasonal climatology or threshold
+
+        'severity_max', 'severity_mean', 'severity_cumulavi' measure the unitless intensity as
+        threshold exceedance normalised by the threshold to climatology differnce
 
         'category' is an integer category system (1, 2, 3, 4) based on the maximum intensity
         in multiples of threshold exceedances, i.e., a value of 1 indicates the MHW
@@ -165,6 +172,10 @@ def detect(t, temp, climatologyPeriod=[None,None], pctile=90, windowHalfWidth=5,
     mhw['intensity_mean'] = [] # [deg C]
     mhw['intensity_var'] = [] # [deg C]
     mhw['intensity_cumulative'] = [] # [deg C]
+    mhw['severity_max'] = [] # []
+    mhw['severity_mean'] = [] # []
+    mhw['severity_var'] = [] # []
+    mhw['severity_cumulative'] = [] # []
     mhw['intensity_max_relThresh'] = [] # [deg C]
     mhw['intensity_mean_relThresh'] = [] # [deg C]
     mhw['intensity_var_relThresh'] = [] # [deg C]
@@ -374,6 +385,10 @@ def detect(t, temp, climatologyPeriod=[None,None], pctile=90, windowHalfWidth=5,
         mhw['intensity_mean'].append(mhw_relSeas.mean())
         mhw['intensity_var'].append(np.sqrt(mhw_relSeas.var()))
         mhw['intensity_cumulative'].append(mhw_relSeas.sum())
+        mhw['severity_mean'].append(mhw_relThreshNorm.mean())
+        mhw['severity_max'].append(mhw_relThreshNorm[tt_peak])
+        mhw['severity_var'].append(np.sqrt(mhw_relThreshNorm.var()))
+        mhw['severity_cumulative'].append(mhw_relThreshNorm.sum())
         mhw['intensity_max_relThresh'].append(mhw_relThresh[tt_peak])
         mhw['intensity_mean_relThresh'].append(mhw_relThresh.mean())
         mhw['intensity_var_relThresh'].append(np.sqrt(mhw_relThresh.var()))
@@ -460,6 +475,7 @@ def blockAverage(t, mhw, clim=None, blockLength=1, removeMissing=False, temp=Non
         'rate_decline'         Average MHW decline rate in each block [deg. C / days]
         'total_days'           Total number of MHW days in each block [days]
         'total_icum'           Total cumulative intensity over all MHWs in each block [deg. C x days]
+        'total_scum'           Total cumulative severity over all MHWs in each block [exceedance x days]
 
         'intensity_max_relThresh', 'intensity_mean_relThresh', 'intensity_var_relThresh', 
         and 'intensity_cumulative_relThresh' are as above except relative to the
@@ -542,6 +558,11 @@ def blockAverage(t, mhw, clim=None, blockLength=1, removeMissing=False, temp=Non
     mhwBlock['intensity_mean'] = np.zeros(nBlocks)
     mhwBlock['intensity_cumulative'] = np.zeros(nBlocks)
     mhwBlock['intensity_var'] = np.zeros(nBlocks)
+    mhwBlock['severity_max'] = np.zeros(nBlocks)
+    mhwBlock['severity_max_max'] = np.zeros(nBlocks)
+    mhwBlock['severity_mean'] = np.zeros(nBlocks)
+    mhwBlock['severity_cumulative'] = np.zeros(nBlocks)
+    mhwBlock['severity_var'] = np.zeros(nBlocks)
     mhwBlock['intensity_max_relThresh'] = np.zeros(nBlocks)
     mhwBlock['intensity_mean_relThresh'] = np.zeros(nBlocks)
     mhwBlock['intensity_cumulative_relThresh'] = np.zeros(nBlocks)
@@ -554,6 +575,7 @@ def blockAverage(t, mhw, clim=None, blockLength=1, removeMissing=False, temp=Non
     mhwBlock['rate_decline'] = np.zeros(nBlocks)
     mhwBlock['total_days'] = np.zeros(nBlocks)
     mhwBlock['total_icum'] = np.zeros(nBlocks)
+    mhwBlock['total_scum'] = np.zeros(nBlocks)
     if sw_temp:
         mhwBlock['temp_mean'] = np.zeros(nBlocks)
         mhwBlock['temp_max'] = np.zeros(nBlocks)
@@ -591,6 +613,12 @@ def blockAverage(t, mhw, clim=None, blockLength=1, removeMissing=False, temp=Non
         mhwBlock['intensity_mean'][iBlock] += mhw['intensity_mean'][i]
         mhwBlock['intensity_cumulative'][iBlock] += mhw['intensity_cumulative'][i]
         mhwBlock['intensity_var'][iBlock] += mhw['intensity_var'][i]
+        mhwBlock['severity_max'][iBlock] += mhw['severity_max'][i]
+        mhwBlock['severity_max_max'][iBlock] = np.max([mhwBlock['severity_max_max'][iBlock], mhw['severity_max'][i]])
+        mhwBlock['severity_mean'][iBlock] += mhw['severity_mean'][i]
+        mhwBlock['severity_cumulative'][iBlock] += mhw['severity_cumulative'][i]
+        mhwBlock['severity_var'][iBlock] += mhw['severity_var'][i]
+        mhwBlock['intensity_var'][iBlock] += mhw['severity_var'][i]
         mhwBlock['intensity_max_relThresh'][iBlock] += mhw['intensity_max_relThresh'][i]
         mhwBlock['intensity_mean_relThresh'][iBlock] += mhw['intensity_mean_relThresh'][i]
         mhwBlock['intensity_cumulative_relThresh'][iBlock] += mhw['intensity_cumulative_relThresh'][i]
@@ -610,6 +638,7 @@ def blockAverage(t, mhw, clim=None, blockLength=1, removeMissing=False, temp=Non
                 mhwBlock['total_days'][iBlock] += np.sum(year_mhw == yr_mhw)
         # NOTE: icum for a MHW is assigned to its start year, even if it spans mult. years
         mhwBlock['total_icum'][iBlock] += mhw['intensity_cumulative'][i]
+        mhwBlock['total_scum'][iBlock] += mhw['severity_cumulative'][i]
 
     # Calculation of category days
     if sw_cats:
@@ -627,6 +656,10 @@ def blockAverage(t, mhw, clim=None, blockLength=1, removeMissing=False, temp=Non
     mhwBlock['intensity_mean'] = mhwBlock['intensity_mean'] / count
     mhwBlock['intensity_cumulative'] = mhwBlock['intensity_cumulative'] / count
     mhwBlock['intensity_var'] = mhwBlock['intensity_var'] / count
+    mhwBlock['severity_max'] = mhwBlock['severity_max'] / count
+    mhwBlock['severity_mean'] = mhwBlock['severity_mean'] / count
+    mhwBlock['severity_cumulative'] = mhwBlock['severity_cumulative'] / count
+    mhwBlock['severity_var'] = mhwBlock['severity_var'] / count
     mhwBlock['intensity_max_relThresh'] = mhwBlock['intensity_max_relThresh'] / count
     mhwBlock['intensity_mean_relThresh'] = mhwBlock['intensity_mean_relThresh'] / count
     mhwBlock['intensity_cumulative_relThresh'] = mhwBlock['intensity_cumulative_relThresh'] / count
@@ -663,6 +696,11 @@ def blockAverage(t, mhw, clim=None, blockLength=1, removeMissing=False, temp=Non
             mhwBlock['intensity_mean'][iMissing] = np.nan
             mhwBlock['intensity_cumulative'][iMissing] = np.nan
             mhwBlock['intensity_var'][iMissing] = np.nan
+            mhwBlock['severity_max'][iMissing] = np.nan
+            mhwBlock['severity_max_max'][iMissing] = np.nan
+            mhwBlock['severity_mean'][iMissing] = np.nan
+            mhwBlock['severity_cumulative'][iMissing] = np.nan
+            mhwBlock['severity_var'][iMissing] = np.nan
             mhwBlock['intensity_max_relThresh'][iMissing] = np.nan
             mhwBlock['intensity_mean_relThresh'][iMissing] = np.nan
             mhwBlock['intensity_cumulative_relThresh'][iMissing] = np.nan
@@ -680,6 +718,7 @@ def blockAverage(t, mhw, clim=None, blockLength=1, removeMissing=False, temp=Non
                 mhwBlock['severe_days'][iMissing] = np.nan
                 mhwBlock['extreme_days'][iMissing] = np.nan
             mhwBlock['total_icum'][iMissing] = np.nan
+            mhwBlock['total_scum'][iMissing] = np.nan
 
     return mhwBlock
 
@@ -814,6 +853,7 @@ def rank(t, mhw):
         'rate_decline'         Average MHW decline rate in each block [deg. C / days]
         'total_days'           Total number of MHW days in each block [days]
         'total_icum'           Total cumulative intensity over all MHWs in each block [deg. C x days]
+        'total_scum'           Total cumulative severity over all MHWs in each block [exceedance x days]
 
         'intensity_max_relThresh', 'intensity_mean_relThresh', 'intensity_var_relThresh', 
         and 'intensity_cumulative_relThresh' are as above except relative to the
